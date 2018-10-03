@@ -1,0 +1,8 @@
+[package]
+name = "ragar"
+version = "0.1.0"
+authors = ["kimtinh <onlyesterday.16@gmail.com>"]
+
+[dependencies]
+ggez = "*"
+rand = "*"
