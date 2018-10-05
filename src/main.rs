@@ -4,17 +4,32 @@ mod ragarman;
 extern crate ggez;
 
 use self::ggez::event;
-use self::ggez::graphics::{self, DrawMode, Point2};
+use self::ggez::graphics::{self, DrawMode, Mesh, Point2};
 use self::ggez::timer;
 use self::ggez::{Context, GameResult};
 
 use food::Food;
 use ragarman::RagarMan;
 
-const FOOD_MASS: u32 = 50;
-const SCREEN_SIZE: (u32, u32) = (1024, 768);
-const MAP_SIZE: (u32, u32) = (1280, 1024);
-const V: f32 = 100.0;
+pub struct Config {
+    food_mass: u32,
+    screen_size: (u32, u32),
+    map_size: (u32, u32),
+    v: f32,
+    max_food: u32,
+}
+
+impl Config {
+    fn new() -> Self {
+        Config {
+            food_mass: 50,
+            screen_size: (1024, 768),
+            map_size: (1280, 1024),
+            v: 100.0,
+            max_food: 5000,
+        }
+    }
+}
 
 fn moving_x_y(src: &Point2, des: &Point2, v: f32) -> Point2 {
     if (des[0] - src[0]).abs() <= v && (des[1] - src[1]).abs() <= v {
@@ -44,22 +59,23 @@ struct MainState {
     // ragarmen: Vec<RagarMan>,
     food: Vec<Food>,
     total_food: u32,
-    max_food: u32,
+    conf: Config,
 }
 
 impl MainState {
-    fn new(_ctx: &mut Context, name: String) -> GameResult<MainState> {
-        let ragarman = RagarMan::new(name);
+    fn new(_ctx: &mut Context, conf: Config, name: String) -> GameResult<MainState> {
+        let ragarman = RagarMan::new(&conf, name);
         let mut _food = Vec::new();
-        for _ in 0..100 {
-            _food.push(Food::new(ragarman.pos, ragarman.draw_pos));
+        let initial_food = 1000;
+        for _ in 0..initial_food {
+            _food.push(Food::new(ragarman.pos, ragarman.draw_pos, &conf));
         }
         let s = MainState {
             player: ragarman,
             // ragarmen: vec![ragarman],
             food: _food,
-            total_food: 100,
-            max_food: 5000,
+            total_food: initial_food,
+            conf,
         };
         Ok(s)
     }
@@ -67,7 +83,7 @@ impl MainState {
 
 impl event::EventHandler for MainState {
     fn update(&mut self, _ctx: &mut Context) -> GameResult<()> {
-        self.player.update(_ctx);
+        self.player.update(_ctx, &self.conf);
         // for ragarman in &mut self.ragarmen {
         //     ragarman.update(_ctx);
         // }
@@ -80,7 +96,7 @@ impl event::EventHandler for MainState {
                 + (self.food[i].pos[1] - self.player.pos[1]).powi(2)).sqrt()
                 < self.player.radius
             {
-                self.player.mass += FOOD_MASS;
+                self.player.mass += self.conf.food_mass;
                 self.player.radius = (self.player.mass as f32 / std::f32::consts::PI).sqrt();
                 self.food.remove(i);
                 food_len -= 1;
@@ -94,9 +110,9 @@ impl event::EventHandler for MainState {
         }
 
         let tick = timer::get_ticks(_ctx);
-        if tick % 100 == 0 && self.total_food < self.max_food {
+        if tick % 100 == 0 && self.total_food < self.conf.max_food {
             self.food
-                .push(Food::new(self.player.pos, self.player.draw_pos));
+                .push(Food::new(self.player.pos, self.player.draw_pos, &self.conf));
             self.total_food += 1;
         }
         Ok(())
@@ -113,7 +129,7 @@ impl event::EventHandler for MainState {
             [
                 self.player.draw_pos[0] - self.player.pos[0],
                 self.player.draw_pos[1] - self.player.pos[1],
-                MAP_SIZE.0 as f32,
+                self.conf.map_size.0 as f32,
                 5.0,
             ]
                 .into(),
@@ -126,7 +142,7 @@ impl event::EventHandler for MainState {
                 self.player.draw_pos[0] - self.player.pos[0],
                 self.player.draw_pos[1] - self.player.pos[1],
                 5.0,
-                MAP_SIZE.1 as f32,
+                self.conf.map_size.1 as f32,
             ]
                 .into(),
         )?;
@@ -136,8 +152,8 @@ impl event::EventHandler for MainState {
             DrawMode::Fill,
             [
                 self.player.draw_pos[0] - self.player.pos[0],
-                self.player.draw_pos[1] - (self.player.pos[1] - MAP_SIZE.1 as f32),
-                MAP_SIZE.0 as f32,
+                self.player.draw_pos[1] - (self.player.pos[1] - self.conf.map_size.1 as f32),
+                self.conf.map_size.0 as f32,
                 5.0,
             ]
                 .into(),
@@ -147,10 +163,10 @@ impl event::EventHandler for MainState {
             ctx,
             DrawMode::Fill,
             [
-                self.player.draw_pos[0] - (self.player.pos[0] - MAP_SIZE.0 as f32),
+                self.player.draw_pos[0] - (self.player.pos[0] - self.conf.map_size.0 as f32),
                 self.player.draw_pos[1] - self.player.pos[1],
                 5.0,
-                MAP_SIZE.1 as f32,
+                self.conf.map_size.1 as f32,
             ]
                 .into(),
         )?;
@@ -160,8 +176,9 @@ impl event::EventHandler for MainState {
         // for ragarman in &mut self.ragarmen {
         //     ragarman.draw(ctx)?;
         // }
+        let mesh = Mesh::new_circle(ctx, DrawMode::Fill, Point2::new(0.0, 0.0), 5.0, 2.0)?;
         for f in &mut self.food {
-            f.draw(ctx)?;
+            f.draw(ctx, &mesh, &self.conf)?;
         }
         graphics::present(ctx);
         Ok(())
@@ -169,14 +186,16 @@ impl event::EventHandler for MainState {
 }
 
 pub fn main() {
+    let conf = Config::new();
     let ctx = &mut ggez::ContextBuilder::new("ragar", "kim tinh")
         .window_setup(ggez::conf::WindowSetup::default().title("Ragar!"))
-        .window_mode(ggez::conf::WindowMode::default().dimensions(SCREEN_SIZE.0, SCREEN_SIZE.1))
-        .build()
+        .window_mode(
+            ggez::conf::WindowMode::default().dimensions(conf.screen_size.0, conf.screen_size.1),
+        ).build()
         .expect("Failed to build ggez context");
 
     let name = "Player One";
-    let s = &mut MainState::new(ctx, name.to_string()).unwrap();
+    let s = &mut MainState::new(ctx, conf, name.to_string()).unwrap();
 
     event::run(ctx, s).unwrap();
 }

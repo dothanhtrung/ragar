@@ -16,17 +16,17 @@ pub struct RagarMan {
 }
 
 impl RagarMan {
-    pub fn new(name: String) -> Self {
-        let x = rand::thread_rng().gen_range(0.0, super::MAP_SIZE.0 as f32);
-        let y = rand::thread_rng().gen_range(0.0, super::MAP_SIZE.1 as f32);
+    pub fn new(conf: &super::Config, name: String) -> Self {
+        let x = rand::thread_rng().gen_range(0.0, conf.map_size.0 as f32);
+        let y = rand::thread_rng().gen_range(0.0, conf.map_size.1 as f32);
         RagarMan {
             pos: Point2::new(x, y),
             draw_pos: Point2::new(
-                super::SCREEN_SIZE.0 as f32 / 2.0,
-                super::SCREEN_SIZE.1 as f32 / 2.0,
+                conf.screen_size.0 as f32 / 2.0,
+                conf.screen_size.1 as f32 / 2.0,
             ),
-            radius: (10.0 * super::FOOD_MASS as f32 / super::std::f32::consts::PI).sqrt(),
-            mass: 10 * super::FOOD_MASS,
+            radius: (10.0 * conf.food_mass as f32 / super::std::f32::consts::PI).sqrt(),
+            mass: 10 * conf.food_mass,
             moving: Point2::new(0.0, 0.0),
             name,
             color: Color::new(
@@ -38,28 +38,33 @@ impl RagarMan {
         }
     }
 
-    pub fn update(&mut self, _ctx: &mut Context) {
+    pub fn update(&mut self, _ctx: &mut Context, conf: &super::Config) {
         let mouse_pos = ggez::mouse::get_position(_ctx).unwrap();
         self.moving = super::moving_x_y(
             &self.draw_pos,
             &mouse_pos,
-            super::V / (self.mass as f32).sqrt(),
+            conf.v / (self.mass as f32).sqrt(),
         );
-    
-        if self.moving[0] > super::MAP_SIZE.0 as f32 - self.pos[0] {
-            self.moving[0] = super::MAP_SIZE.0 as f32 - self.pos[0];
-        } else if self.moving[0] < 0.0 - self.pos[0]{
+
+        if self.moving[0] > conf.map_size.0 as f32 - self.pos[0] {
+            self.moving[0] = conf.map_size.0 as f32 - self.pos[0];
+        } else if self.moving[0] < 0.0 - self.pos[0] {
             self.moving[0] = 0.0 - self.pos[0];
         }
 
-        if self.moving[1] > super::MAP_SIZE.1 as f32 - self.pos[1] {
-            self.moving[1] = super::MAP_SIZE.1 as f32 - self.pos[1];
-        } else if self.moving[1] < 0.0 - self.pos[1]{
+        if self.moving[1] > conf.map_size.1 as f32 - self.pos[1] {
+            self.moving[1] = conf.map_size.1 as f32 - self.pos[1];
+        } else if self.moving[1] < 0.0 - self.pos[1] {
             self.moving[1] = 0.0 - self.pos[1];
         }
 
         self.pos[0] += self.moving[0];
         self.pos[1] += self.moving[1];
+    }
+
+    pub fn enemy_update(&mut self, moving: Point2) {
+        self.draw_pos[0] -= moving[0];
+        self.draw_pos[1] -= moving[1];
     }
 
     pub fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
