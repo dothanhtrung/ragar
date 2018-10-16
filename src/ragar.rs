@@ -71,11 +71,14 @@ impl MainState {
         let player: Player = serde_json::from_value(r["player"].clone()).unwrap();
         let cam_pos = player.ragarmen[0].pos;
         let id = player.id;
-        let map_size = r["map_size"].as_array().unwrap();
-        let map_size = (
-            map_size[0].as_f64().unwrap() as f32,
-            map_size[1].as_f64().unwrap() as f32,
-        );
+        let mut map_size = (0.0, 0.0);
+        if r["map_size"].is_array() {
+            let arr_map_size = r["map_size"].as_array().unwrap();
+            map_size = (
+                arr_map_size[0].as_f64().unwrap() as f32,
+                arr_map_size[1].as_f64().unwrap() as f32,
+            );
+        }
 
         let s = MainState {
             remote_addr,

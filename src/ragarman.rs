@@ -27,6 +27,11 @@ impl RagarMan {
         }
     }
 
+    pub fn gain_mass(&mut self, mass: u32) {
+        self.mass += mass;
+        self.radius = (self.mass as f32 / super::std::f32::consts::PI).sqrt();
+    }
+
     pub fn draw(
         &mut self,
         ctx: &mut Context,
