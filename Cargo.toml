@@ -6,3 +6,16 @@ authors = ["kimtinh <onlyesterday.16@gmail.com>"]
 [dependencies]
 ggez = "*"
 rand = "*"
+serde = "*"
+serde_derive = "*"
+serde_json = "*"
+futures = "*"
+tokio = "*"
+
+[[bin]]
+name = "ragar_server"
+path = "src/server.rs"
+
+[[bin]]
+name = "ragar"
+path = "src/ragar.rs"

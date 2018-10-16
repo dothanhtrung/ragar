@@ -1,50 +1,56 @@
 extern crate ggez;
 extern crate rand;
 
-use self::ggez::graphics::{self, Color, Mesh, Point2};
+use self::ggez::graphics::{self, DrawMode, Point2};
 use self::ggez::{Context, GameResult};
 use self::rand::Rng;
 
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Food {
-    pub pos: Point2,
-    draw_pos: Point2,
-    color: Color,
+    pub pos: (f32, f32),
+    pub color: (f32, f32, f32),
 }
 
 impl Food {
-    pub fn new(ragar_pos: Point2, ragar_draw_pos: Point2, conf: &super::Config) -> Self {
-        let x = rand::thread_rng().gen_range(0.0, conf.map_size.0 as f32);
-        let y = rand::thread_rng().gen_range(0.0, conf.map_size.1 as f32);
-        let draw_pos = Point2::new(
-            ragar_draw_pos[0] - (ragar_pos[0] - x),
-            ragar_draw_pos[1] - (ragar_pos[1] - y),
-        );
+    pub fn new(map_size: (f32, f32)) -> Self {
+        let x = rand::thread_rng().gen_range(0.0, map_size.0);
+        let y = rand::thread_rng().gen_range(0.0, map_size.1);
+
         Food {
-            pos: Point2::new(x, y),
-            draw_pos,
-            color: Color::new(
+            pos: (x, y),
+            color: (
                 rand::thread_rng().gen_range(0.0, 1.0),
                 rand::thread_rng().gen_range(0.0, 1.0),
                 rand::thread_rng().gen_range(0.0, 1.0),
-                1.0,
             ),
         }
     }
-
-    pub fn update(&mut self, moving: Point2) {
-        self.draw_pos[0] -= moving[0];
-        self.draw_pos[1] -= moving[1];
-    }
-
-    pub fn draw(&mut self, ctx: &mut Context, mesh: &Mesh, conf: &super::Config) -> GameResult<()> {
-        graphics::set_color(ctx, self.color)?;
-        if self.draw_pos[0] >= 0.0
-            && self.draw_pos[0] <= conf.screen_size.0 as f32
-            && self.draw_pos[1] >= 0.0
-            && self.draw_pos[1] <= conf.screen_size.1 as f32
+    pub fn draw(
+        &mut self,
+        ctx: &mut Context,
+        cam_pos: (f32, f32),
+        screen_size: (u32, u32),
+    ) -> GameResult<()> {
+        graphics::set_color(ctx, [self.color.0, self.color.1, self.color.2, 1.0].into())?;
+        let draw_pos = (
+            self.pos.0 + screen_size.0 as f32 / 2.0 - cam_pos.0,
+            self.pos.1 + screen_size.1 as f32 / 2.0 - cam_pos.1,
+        );
+        if draw_pos.0 >= 0.0
+            && draw_pos.0 <= screen_size.0 as f32
+            && draw_pos.1 >= 0.0
+            && draw_pos.1 <= screen_size.1 as f32
         {
-            graphics::draw(ctx, mesh, self.draw_pos, 0.0)?;
+            graphics::circle(
+                ctx,
+                DrawMode::Fill,
+                Point2::new(draw_pos.0, draw_pos.1),
+                5.0,
+                2.0,
+            )?;
         }
+
+        // graphics::draw(ctx, mesh, Point2::new(self.pos.0, self.pos.1), 0.0)?;
         Ok(())
     }
 }
