@@ -1,9 +1,11 @@
 mod food;
 mod player;
 mod ragarman;
+mod virus;
 
 use food::Food;
 use player::Player;
+use virus::Virus;
 
 extern crate ggez;
 extern crate serde;
@@ -42,6 +44,7 @@ struct MainState {
     cam_pos: (f32, f32),
     players: Vec<Player>,
     food: Vec<Food>,
+    viruses: Vec<Virus>,
     conf: ClientConf,
 }
 
@@ -87,6 +90,7 @@ impl MainState {
             players: Vec::new(),
             map_size,
             food: Vec::new(),
+            viruses: Vec::new(),
             conf,
         };
         Ok(s)
@@ -128,7 +132,9 @@ impl event::EventHandler for MainState {
 
         let r: Value = serde_json::from_str(&r).unwrap();
         let food: Vec<Food> = serde_json::from_value(r["food"].clone()).unwrap();
+        let viruses: Vec<Virus> = serde_json::from_value(r["viruses"].clone()).unwrap();
         self.food = food;
+        self.viruses = viruses;
 
         self.players = serde_json::from_value(r["players"].clone()).unwrap();
         for p in &mut self.players {
@@ -177,6 +183,12 @@ impl event::EventHandler for MainState {
         for f in &mut self.food {
             f.draw(ctx, self.cam_pos, self.conf.screen_size)?;
         }
+
+        // Draw viruses
+        for v in &mut self.viruses {
+            v.draw(ctx, self.cam_pos, self.conf.screen_size)?;
+        }
+
         graphics::present(ctx);
         Ok(())
     }

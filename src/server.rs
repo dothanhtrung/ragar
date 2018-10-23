@@ -1,9 +1,11 @@
 mod food;
 mod player;
 mod ragarman;
+mod virus;
 
 use food::Food;
 use player::Player;
+use virus::Virus;
 
 extern crate serde;
 extern crate serde_json;
@@ -54,15 +56,17 @@ pub struct ServerConfig {
     map_size: (f32, f32),
     v: f32,
     max_food: u32,
+    virus_number: u32,
 }
 
 impl ServerConfig {
     fn new() -> Self {
         ServerConfig {
             food_mass: 50,
-            map_size: (800.0, 600.0),
+            map_size: (2400.0, 1800.0),
             v: 100.0,
             max_food: 1000,
+            virus_number: 100,
         }
     }
 }
@@ -71,19 +75,25 @@ impl ServerConfig {
 struct GameData {
     players: Vec<Player>,
     food: Vec<Food>,
+    viruses: Vec<Virus>,
     total_food: u32,
 }
 
 impl GameData {
     fn new(conf: &ServerConfig) -> Self {
-        let mut _food = Vec::new();
+        let mut food = Vec::new();
         let initial_food = 100;
         for _ in 0..initial_food {
-            _food.push(Food::new(conf.map_size));
+            food.push(Food::new(conf.map_size));
+        }
+        let mut viruses = Vec::new();
+        for _ in 0..conf.virus_number {
+            viruses.push(Virus::new(conf.map_size, conf.food_mass));
         }
         GameData {
             players: Vec::new(),
-            food: _food,
+            food,
+            viruses,
             total_food: initial_food,
         }
     }
@@ -95,6 +105,21 @@ struct Server {
     to_send: Option<(usize, SocketAddr)>,
     conf: ServerConfig,
     gamedata: GameData,
+}
+
+impl Server {
+    fn new(socket: UdpSocket) -> Self {
+        let conf = ServerConfig::new();
+        let gamedata = GameData::new(&conf);
+
+        Server {
+            socket,
+            buf: vec![0; 1024],
+            to_send: None,
+            conf,
+            gamedata,
+        }
+    }
 }
 
 impl Future for Server {
@@ -286,21 +311,20 @@ impl Future for Server {
     }
 }
 fn main() {
-    let conf = ServerConfig::new();
-    let gamedata = GameData::new(&conf);
     let addr = env::args().nth(1).unwrap_or("127.0.0.1:12464".to_string());
     let addr = addr.parse::<SocketAddr>().unwrap();
 
     let socket = UdpSocket::bind(&addr).unwrap();
     println!("Listening on: {}", socket.local_addr().unwrap());
 
-    let server = Server {
-        socket: socket,
-        buf: vec![0; 1024],
-        to_send: None,
-        conf,
-        gamedata,
-    };
+    // let server = Server {
+    //     socket: socket,
+    //     buf: vec![0; 1024],
+    //     to_send: None,
+    //     conf,
+    //     gamedata,
+    // };
 
+    let server = Server::new(socket);
     tokio::run(server.map_err(|e| println!("server error = {:?}", e)));
 }

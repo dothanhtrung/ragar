@@ -44,17 +44,17 @@ impl RagarMan {
             self.pos.0 + screen_size.0 as f32 / 2.0 - cam_pos.0,
             self.pos.1 + screen_size.1 as f32 / 2.0 - cam_pos.1,
         );
-        if draw_pos.0 >= 0.0
-            && draw_pos.0 <= screen_size.0 as f32
-            && draw_pos.1 >= 0.0
-            && draw_pos.1 <= screen_size.1 as f32
+        if draw_pos.0 + self.radius >= 0.0
+            && draw_pos.0 - self.radius <= screen_size.0 as f32
+            && draw_pos.1 + self.radius >= 0.0
+            && draw_pos.1 - self.radius <= screen_size.1 as f32
         {
             graphics::circle(
                 ctx,
                 DrawMode::Fill,
                 Point2::new(draw_pos.0, draw_pos.1),
                 self.radius,
-                2.0,
+                1.0,
             )?;
         }
 
