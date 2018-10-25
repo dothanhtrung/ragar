@@ -84,7 +84,7 @@ impl GameData {
         let mut food = Vec::new();
         let initial_food = 100;
         for _ in 0..initial_food {
-            food.push(Food::new(conf.map_size));
+            food.push(Food::new(conf.food_mass, conf.map_size));
         }
         let mut viruses = Vec::new();
         for _ in 0..conf.virus_number {
@@ -253,9 +253,23 @@ impl Future for Server {
                         }
                     }
 
+                    // Sort players
+                    if self.gamedata.players.len() > 0 {
+                        for i in 0..(self.gamedata.players.len() - 1) {
+                            for j in i + 1..self.gamedata.players.len() {
+                                if self.gamedata.players[i].mass() < self.gamedata.players[j].mass()
+                                {
+                                    self.gamedata.players.swap(i, j);
+                                }
+                            }
+                        }
+                    }
+
                     if action == "food" {
                         if self.gamedata.total_food < self.conf.max_food {
-                            self.gamedata.food.push(Food::new(self.conf.map_size));
+                            self.gamedata
+                                .food
+                                .push(Food::new(self.conf.food_mass, self.conf.map_size));
                             self.gamedata.total_food += 1;
                         }
                     }
@@ -316,14 +330,6 @@ fn main() {
 
     let socket = UdpSocket::bind(&addr).unwrap();
     println!("Listening on: {}", socket.local_addr().unwrap());
-
-    // let server = Server {
-    //     socket: socket,
-    //     buf: vec![0; 1024],
-    //     to_send: None,
-    //     conf,
-    //     gamedata,
-    // };
 
     let server = Server::new(socket);
     tokio::run(server.map_err(|e| println!("server error = {:?}", e)));

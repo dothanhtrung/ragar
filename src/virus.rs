@@ -1,7 +1,7 @@
 extern crate ggez;
 extern crate rand;
 
-use self::ggez::graphics::{self, DrawMode, Font, Mesh, MeshBuilder, Point2, Text};
+use self::ggez::graphics::{self, DrawMode, Mesh, MeshBuilder, Point2};
 use self::ggez::{Context, GameResult};
 use self::rand::Rng;
 
@@ -21,7 +21,7 @@ impl Virus {
     pub fn new(map_size: (f32, f32), food_mass: u32) -> Self {
         let x = rand::thread_rng().gen_range(0.0, map_size.0);
         let y = rand::thread_rng().gen_range(0.0, map_size.1);
-        let mass = 100 * food_mass;
+        let mass = 150 * food_mass;
         Virus {
             pos: (x, y),
             radius: (mass as f32 / super::std::f32::consts::PI).sqrt(),
@@ -52,20 +52,21 @@ impl Virus {
             && draw_pos.1 + self.radius >= 0.0
             && draw_pos.1 - self.radius <= screen_size.1 as f32
         {
-            let shorter_r = self.radius * 0.8;
+            let shorter_r = self.radius * 0.9;
             let mut points: [Point2; 32] = [Point2::new(0.0, 0.0); 32];
 
-            let mut rad: f32 = 0.0;
-            let jump = 22.5 / 60.0;
+            let mut deg: f32 = 0.0;
             for i in 0..16 {
+                let rad = deg / 60.0;
                 points[2 * i] = Point2::new(self.radius * rad.sin(), self.radius * rad.cos());
-                rad += jump;
+                deg += 22.5;
             }
 
-            rad = 22.5 / 2.0 / 60.0;
+            deg = 22.5 / 2.0;
             for i in 0..16 {
+                let rad = deg / 60.0;
                 points[2 * i + 1] = Point2::new(shorter_r * rad.sin(), shorter_r * rad.cos());
-                rad += jump;
+                deg += 22.5;
             }
 
             let mesh: Mesh = MeshBuilder::new()

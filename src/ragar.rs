@@ -16,7 +16,7 @@ extern crate tokio;
 extern crate serde_derive;
 
 use self::ggez::event;
-use self::ggez::graphics::{self, Mesh, MeshBuilder, Point2};
+use self::ggez::graphics::{self, Font, Mesh, MeshBuilder, Point2, Text};
 use self::ggez::timer;
 use self::ggez::{Context, GameResult};
 use serde_json::Value;
@@ -27,25 +27,43 @@ use tokio::prelude::*;
 
 struct ClientConf {
     screen_size: (u32, u32),
+    font: Font,
 }
 
 impl ClientConf {
     fn new() -> Self {
         ClientConf {
             screen_size: (1024, 768),
+            font: Font::default_font().unwrap(),
+        }
+    }
+}
+
+struct PlayerDraw {
+    player: Player,
+    name_display: Text,
+}
+
+impl PlayerDraw {
+    fn new(_ctx: &mut Context, player: Player, font: &Font) -> Self {
+        let name = player.name.clone();
+        PlayerDraw {
+            player,
+            name_display: Text::new(_ctx, &name, font).unwrap(),
         }
     }
 }
 
 struct MainState {
     remote_addr: SocketAddr,
-    map_size: (f32, f32),
+    // map_size: (f32, f32),
     id: u64,
     cam_pos: (f32, f32),
-    players: Vec<Player>,
+    players_draw: Vec<PlayerDraw>,
     food: Vec<Food>,
     viruses: Vec<Virus>,
     conf: ClientConf,
+    score_board: Vec<Text>,
 }
 
 impl MainState {
@@ -74,24 +92,30 @@ impl MainState {
         let player: Player = serde_json::from_value(r["player"].clone()).unwrap();
         let cam_pos = player.ragarmen[0].pos;
         let id = player.id;
-        let mut map_size = (0.0, 0.0);
-        if r["map_size"].is_array() {
-            let arr_map_size = r["map_size"].as_array().unwrap();
-            map_size = (
-                arr_map_size[0].as_f64().unwrap() as f32,
-                arr_map_size[1].as_f64().unwrap() as f32,
-            );
+        // let mut map_size = (0.0, 0.0);
+        // if r["map_size"].is_array() {
+        //     let arr_map_size = r["map_size"].as_array().unwrap();
+        //     map_size = (
+        //         arr_map_size[0].as_f64().unwrap() as f32,
+        //         arr_map_size[1].as_f64().unwrap() as f32,
+        //     );
+        // }
+
+        let mut score_board = Vec::new();
+        for i in 0..11 {
+            score_board.push(Text::new(_ctx, "", &conf.font).unwrap());
         }
 
         let s = MainState {
             remote_addr,
             id,
             cam_pos,
-            players: Vec::new(),
-            map_size,
+            players_draw: Vec::new(),
+            // map_size,
             food: Vec::new(),
             viruses: Vec::new(),
             conf,
+            score_board,
         };
         Ok(s)
     }
@@ -136,10 +160,33 @@ impl event::EventHandler for MainState {
         self.food = food;
         self.viruses = viruses;
 
-        self.players = serde_json::from_value(r["players"].clone()).unwrap();
-        for p in &mut self.players {
-            if p.id == self.id {
-                self.cam_pos = p.pos;
+        let players: Vec<Player> = serde_json::from_value(r["players"].clone()).unwrap();
+        self.players_draw = Vec::new();
+        self.score_board = Vec::new();
+        let mut i = 1;
+        let mut in_top_10 = false;
+        for p in players {
+            if i < 10 {
+                if self.id == p.id {
+                    in_top_10 = true;
+                }
+                self.score_board
+                    .push(Text::new(_ctx, &format!("{}. {}", i, p.name), &self.conf.font).unwrap());
+            } else {
+                if self.id == p.id && !in_top_10 {
+                    self.score_board.push(
+                        Text::new(_ctx, &format!("{}. {}", i, p.name), &self.conf.font).unwrap(),
+                    );
+                }
+            }
+            self.players_draw
+                .push(PlayerDraw::new(_ctx, p, &self.conf.font));
+            i += 1;
+        }
+
+        for p in &mut self.players_draw {
+            if p.player.id == self.id {
+                self.cam_pos = p.player.pos;
             }
         }
         Ok(())
@@ -150,32 +197,33 @@ impl event::EventHandler for MainState {
         graphics::set_background_color(ctx, [1.0, 1.0, 1.0, 1.0].into());
 
         // Draw border
-        let mesh: Mesh = MeshBuilder::new()
-            .line(
-                &[
-                    Point2::new(0.0, 0.0),
-                    Point2::new(0.0, self.map_size.1),
-                    Point2::new(self.map_size.0, self.map_size.1),
-                    Point2::new(self.map_size.0, 0.0),
-                    Point2::new(0.0, 0.0),
-                ],
-                4.0,
-            ).build(ctx)
-            .unwrap();
+        // let mesh: Mesh = MeshBuilder::new()
+        //     .line(
+        //         &[
+        //             Point2::new(0.0, 0.0),
+        //             Point2::new(0.0, self.map_size.1),
+        //             Point2::new(self.map_size.0, self.map_size.1),
+        //             Point2::new(self.map_size.0, 0.0),
+        //             Point2::new(0.0, 0.0),
+        //         ],
+        //         4.0,
+        //     ).build(ctx)
+        //     .unwrap();
 
-        graphics::draw(
-            ctx,
-            &mesh,
-            Point2::new(
-                self.conf.screen_size.0 as f32 / 2.0 - self.cam_pos.0,
-                self.conf.screen_size.1 as f32 / 2.0 - self.cam_pos.1,
-            ),
-            0.0,
-        )?;
+        // graphics::draw(
+        //     ctx,
+        //     &mesh,
+        //     Point2::new(
+        //         self.conf.screen_size.0 as f32 / 2.0 - self.cam_pos.0,
+        //         self.conf.screen_size.1 as f32 / 2.0 - self.cam_pos.1,
+        //     ),
+        //     0.0,
+        // )?;
 
         // Draw players
-        for p in &mut self.players {
-            p.draw(ctx, self.cam_pos, self.conf.screen_size)?;
+        for p in &mut self.players_draw {
+            p.player
+                .draw(ctx, self.cam_pos, self.conf.screen_size, &p.name_display)?;
         }
 
         // Draw food
@@ -189,10 +237,51 @@ impl event::EventHandler for MainState {
             v.draw(ctx, self.cam_pos, self.conf.screen_size)?;
         }
 
+        // Draw score board
+        // let mesh: Mesh = MeshBuilder::new()
+        //     .line(
+        //         &[
+        //             Point2::new(self.conf.screen_size.0 as f32 - 200.0, 0.0),
+        //             Point2::new(self.conf.screen_size.0 as f32 - 200.0, 250.0),
+        //             Point2::new(self.conf.screen_size.0 as f32, 250.0),
+        //             Point2::new(self.conf.screen_size.0 as f32, 0.0),
+        //         ],
+        //         4.0,
+        //     ).build(ctx)
+        //     .unwrap();
+        // graphics::draw(ctx, &mesh, Point2::new(0.0, 0.0), 0.0)?;
+        if self.players_draw.len() > 0 {
+            graphics::set_color(
+                ctx,
+                [
+                    self.players_draw[0].player.color.0,
+                    self.players_draw[0].player.color.1,
+                    self.players_draw[0].player.color.2,
+                    1.0,
+                ]
+                    .into(),
+            );
+        }
+        
+        let mut i = 0;
+        for s in &mut self.score_board {
+            graphics::draw(
+                ctx,
+                s,
+                Point2::new(
+                    self.conf.screen_size.0 as f32 - 200.0,
+                    (i * s.height()) as f32,
+                ),
+                0.0,
+            )?;
+            i += 1;
+        }
+
         graphics::present(ctx);
         Ok(())
     }
 
+    /// Send a disconnect signal to server to remove player
     fn quit_event(&mut self, _ctx: &mut Context) -> bool {
         let remote_addr: SocketAddr = env::args()
             .nth(1)

@@ -9,10 +9,12 @@ use self::rand::Rng;
 pub struct Food {
     pub pos: (f32, f32),
     pub color: (f32, f32, f32),
+    mass: u32,
+    radius: f32,
 }
 
 impl Food {
-    pub fn new(map_size: (f32, f32)) -> Self {
+    pub fn new(food_mass: u32, map_size: (f32, f32)) -> Self {
         let x = rand::thread_rng().gen_range(0.0, map_size.0);
         let y = rand::thread_rng().gen_range(0.0, map_size.1);
 
@@ -23,6 +25,8 @@ impl Food {
                 rand::thread_rng().gen_range(0.0, 1.0),
                 rand::thread_rng().gen_range(0.0, 1.0),
             ),
+            mass: food_mass,
+            radius: (food_mass as f32 / super::std::f32::consts::PI).sqrt(),
         }
     }
     pub fn draw(
@@ -45,7 +49,7 @@ impl Food {
                 ctx,
                 DrawMode::Fill,
                 Point2::new(draw_pos.0, draw_pos.1),
-                5.0,
+                self.radius,
                 2.0,
             )?;
         }

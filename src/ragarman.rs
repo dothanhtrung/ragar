@@ -1,7 +1,7 @@
 extern crate ggez;
 extern crate rand;
 
-use self::ggez::graphics::{self, DrawMode, Font, Point2, Text};
+use self::ggez::graphics::{self, DrawMode, Point2, Text};
 use self::ggez::{Context, GameResult};
 use self::rand::Rng;
 
@@ -37,6 +37,7 @@ impl RagarMan {
         ctx: &mut Context,
         cam_pos: (f32, f32),
         screen_size: (u32, u32),
+        name_display: &Text,
     ) -> GameResult<()> {
         graphics::set_color(ctx, [self.color.0, self.color.1, self.color.2, 1.0].into())?;
 
@@ -58,10 +59,8 @@ impl RagarMan {
             )?;
         }
 
-        let font = Font::default_font().unwrap();
-        let name_display = Text::new(ctx, self.name.as_str(), &font).unwrap();
         graphics::set_color(ctx, graphics::BLACK)?;
-        graphics::draw(ctx, &name_display, Point2::new(draw_pos.0, draw_pos.1), 0.0)?;
+        graphics::draw(ctx, name_display, Point2::new(draw_pos.0, draw_pos.1), 0.0)?;
 
         Ok(())
     }

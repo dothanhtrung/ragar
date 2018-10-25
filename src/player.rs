@@ -1,6 +1,7 @@
 extern crate ggez;
 extern crate rand;
 
+use self::ggez::graphics::Text;
 use self::ggez::{Context, GameResult};
 use self::rand::Rng;
 use super::ragarman::RagarMan;
@@ -8,7 +9,7 @@ use super::ragarman::RagarMan;
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Player {
     pub id: u64,
-    name: String,
+    pub name: String,
     // time_alive: String,
     pub ragarmen: Vec<RagarMan>,
     pub color: (f32, f32, f32),
@@ -34,14 +35,24 @@ impl Player {
         }
     }
 
+    pub fn mass(&mut self) -> u32 {
+        let mut mass = 0;
+        for r in &mut self.ragarmen {
+            mass += r.mass;
+        }
+
+        mass
+    }
+
     pub fn draw(
         &mut self,
         ctx: &mut Context,
         cam_pos: (f32, f32),
         screen_size: (u32, u32),
+        name_display: &Text,
     ) -> GameResult<()> {
         for r in &mut self.ragarmen {
-            r.draw(ctx, cam_pos, screen_size)?;
+            r.draw(ctx, cam_pos, screen_size, name_display)?;
         }
 
         Ok(())
