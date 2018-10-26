@@ -9,7 +9,7 @@ use self::rand::Rng;
 pub struct Food {
     pub pos: (f32, f32),
     pub color: (f32, f32, f32),
-    mass: u32,
+    pub mass: u32,
     radius: f32,
 }
 

@@ -1,9 +1,11 @@
 mod food;
+mod gamedata;
 mod player;
 mod ragarman;
 mod virus;
 
 use food::Food;
+use gamedata::GameData;
 use player::Player;
 use virus::Virus;
 
@@ -46,10 +48,6 @@ fn moving_x_y(src: (f32, f32), des: (f32, f32), v: f32) -> (f32, f32) {
     }
 }
 
-fn distance(src: (f32, f32), des: (f32, f32)) -> f32 {
-    ((des.0 - src.0).powf(2.0) + (des.1 - src.1).powf(2.0)).sqrt()
-}
-
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ServerConfig {
     food_mass: u32,
@@ -67,34 +65,6 @@ impl ServerConfig {
             v: 100.0,
             max_food: 1000,
             virus_number: 100,
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-struct GameData {
-    players: Vec<Player>,
-    food: Vec<Food>,
-    viruses: Vec<Virus>,
-    total_food: u32,
-}
-
-impl GameData {
-    fn new(conf: &ServerConfig) -> Self {
-        let mut food = Vec::new();
-        let initial_food = 100;
-        for _ in 0..initial_food {
-            food.push(Food::new(conf.food_mass, conf.map_size));
-        }
-        let mut viruses = Vec::new();
-        for _ in 0..conf.virus_number {
-            viruses.push(Virus::new(conf.map_size, conf.food_mass));
-        }
-        GameData {
-            players: Vec::new(),
-            food,
-            viruses,
-            total_food: initial_food,
         }
     }
 }
@@ -163,114 +133,17 @@ impl Future for Server {
                     );
                     let _ = try_ready!(self.socket.poll_send_to(&response.as_bytes(), &peer));
                 } else if action == "disconnect" {
-                    let mut i = 0;
-                    while i < self.gamedata.players.len() {
-                        if id == self.gamedata.players[i].id {
-                            self.gamedata.players.remove(i);
-                            break;
-                        }
-                        i += 1;
-                    }
+                    self.gamedata.remove_player(id);
                 } else {
-                    // Eat food
-                    for p in &mut self.gamedata.players {
-                        for r in &mut p.ragarmen {
-                            let mut i = 0;
-                            while i < self.gamedata.food.len() {
-                                if ((self.gamedata.food[i].pos.0 - r.pos.0).powi(2)
-                                    + (self.gamedata.food[i].pos.1 - r.pos.1).powi(2)).sqrt()
-                                    < r.radius
-                                {
-                                    r.gain_mass(self.conf.food_mass);
-                                    self.gamedata.food.remove(i);
-                                    self.gamedata.total_food -= 1;
-                                } else {
-                                    i += 1;
-                                }
-                            }
-                        }
-                    }
-
-                    // Eat ragarman
-                    let mut i = 0;
-                    let mut players_len = self.gamedata.players.len();
-                    while players_len != 0 && i < (players_len - 1) {
-                        let mut j = i + 1;
-                        let mut eaten = false;
-                        while j < players_len {
-                            let (mut p, mut q) = (0, 0);
-                            let (mut leni, mut lenj) = (
-                                self.gamedata.players[i].ragarmen.len(),
-                                self.gamedata.players[j].ragarmen.len(),
-                            );
-                            while p < leni {
-                                let mut eatenp = false;
-                                while q < lenj {
-                                    let mut eatenq = false;
-                                    let r1 = self.gamedata.players[i].ragarmen[p].clone();
-                                    let r2 = self.gamedata.players[j].ragarmen[q].clone();
-                                    if r1.mass >= 120 * r2.mass / 100 {
-                                        let d = distance(r1.pos, r2.pos);
-                                        if d + r2.radius - r1.radius <= r2.radius / 4.0 {
-                                            self.gamedata.players[i].ragarmen[p].gain_mass(r2.mass);
-                                            self.gamedata.players[j].ragarmen.remove(q);
-                                            lenj -= 1;
-                                            eatenq = true;
-                                        }
-                                    } else if r2.mass >= 120 * r1.mass / 100 {
-                                        let d = distance(r1.pos, r2.pos);
-                                        if d + r1.radius - r2.radius <= r1.radius / 4.0 {
-                                            self.gamedata.players[j].ragarmen[q].gain_mass(r1.mass);
-                                            self.gamedata.players[i].ragarmen.remove(p);
-                                            leni -= 1;
-                                            eatenp = true;
-                                        }
-                                    }
-                                    if !eatenq {
-                                        q += 1;
-                                    }
-                                }
-                                if !eatenp {
-                                    p += 1;
-                                }
-                            }
-                            if lenj <= 0 {
-                                self.gamedata.players.remove(j);
-                                players_len -= 1;
-                            } else {
-                                j += 1;
-                            }
-
-                            if leni <= 0 {
-                                self.gamedata.players.remove(i);
-                                players_len -= 1;
-                                eaten = true;
-                                break;
-                            }
-                        }
-                        if !eaten {
-                            i += 1;
-                        }
-                    }
+                    // Players eat food and each other
+                    self.gamedata.eat();
 
                     // Sort players
-                    if self.gamedata.players.len() > 0 {
-                        for i in 0..(self.gamedata.players.len() - 1) {
-                            for j in i + 1..self.gamedata.players.len() {
-                                if self.gamedata.players[i].mass() < self.gamedata.players[j].mass()
-                                {
-                                    self.gamedata.players.swap(i, j);
-                                }
-                            }
-                        }
-                    }
+                    self.gamedata.sort_players_by_mass();
 
                     if action == "food" {
                         if self.gamedata.total_food < self.conf.max_food {
-                            self.gamedata
-                                .food
-                                .push(Food::new(self.conf.food_mass, self.conf.map_size));
-                            self.gamedata.total_food += 1;
+                            self.gamedata.feed(self.conf.food_mass, self.conf.map_size);
                         }
                     }
 
