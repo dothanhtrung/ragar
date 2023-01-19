@@ -5,19 +5,19 @@ edition = "2021"
 
 [dependencies]
 # Remove dynamic when release
-bevy = {  workspace = true}
-bevy_renet = "0.0.6"
-#bevy_ggrs = "0.10"
-#bytemuck = "1.12"
-#ggrs = "0.9"
+bevy = {  workspace = true, features = ["dynamic"] }
+#bevy_renet = "0.0.6"
+bevy_ggrs = { version = "0.11", features = ["wasm-bindgen"] }
+bytemuck = "1.13"
+# ggrs = "0.9"
 rand = "0.8"
 #structopt = "0.3"
-#matchbox_socket = { version = "0.4", features = ["ggrs-socket"] }
+matchbox_socket = { version = "0.5", features = ["ggrs-socket"] }
 
-[[bin]]
-name = "ragar-server"
-path = "src/server/main.rs"
-
-[[bin]]
-name = "ragar"
-path = "src/client/main.rs"
+#[[bin]]
+#name = "ragar-server"
+#path = "src/server/main.rs"
+#
+#[[bin]]
+#name = "ragar"
+#path = "src/client/main.rs"
